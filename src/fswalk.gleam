@@ -26,7 +26,10 @@ pub fn builder() -> WalkBuilder(Non, Non) {
 
 /// Create a new WalkBuilder bound to a directory path to walk
 ///
-pub fn with_path(builder: WalkBuilder(f, p), path: String) -> WalkBuilder(f, Som) {
+pub fn with_path(
+  builder: WalkBuilder(f, p),
+  path: String,
+) -> WalkBuilder(f, Som) {
   WalkBuilder(filter: builder.filter, path: Some(path))
 }
 
@@ -52,8 +55,8 @@ pub fn walk(builder: WalkBuilder(f, Som)) {
   walk_path(path.from_string(root_path), filter)
 }
 
-/// Weak [stat](https://www.man7.org/linux/man-pages/man2/stat.2.html) implementation.
 // Needs beefing up.
+/// Weak [stat](https://www.man7.org/linux/man-pages/man2/stat.2.html) implementation.
 ///
 pub type Stat {
   Stat(is_directory: Bool)
