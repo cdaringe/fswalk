@@ -4,9 +4,8 @@ import gleam/option.{type Option, None, Some}
 import gleam_community/path
 import simplifile.{type FileError, is_directory, read_directory}
 
-pub opaque type Non
-
-pub opaque type Som
+opaque type Non
+opaque type Som
 
 pub opaque type WalkBuilder(filter, path) {
   WalkBuilder(filter: Option(EntryFilter), path: Option(String))
