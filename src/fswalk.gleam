@@ -4,39 +4,46 @@ import gleam/option.{type Option, None, Some}
 import gleam_community/path
 import simplifile.{type FileError, is_directory, read_directory}
 
-/// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
+/// Private. Pending [gleam/issues/2486](https://github.com/gleam-lang/gleam/issues/2486)
+///
 pub opaque type Non
 
-/// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
+/// Private. Pending [gleam/issues/2486](https://github.com/gleam-lang/gleam/issues/2486)
+///
 pub opaque type Som
 
-/// See fswalk.builder()
+/// See [builder](#builder).
+///
 pub opaque type WalkBuilder(filter, path) {
   WalkBuilder(filter: Option(EntryFilter), path: Option(String))
 }
 
 /// Create a new WalkBuilder
+///
 pub fn builder() -> WalkBuilder(Non, Non) {
   WalkBuilder(filter: None, path: None)
 }
 
 /// Create a new WalkBuilder bound to a directory path to walk
-pub fn with_path(wb: WalkBuilder(f, p), path: String) -> WalkBuilder(f, Som) {
-  WalkBuilder(filter: wb.filter, path: Some(path))
+///
+pub fn with_path(builder: WalkBuilder(f, p), path: String) -> WalkBuilder(f, Som) {
+  WalkBuilder(filter: builder.filter, path: Some(path))
 }
 
 /// Create a new WalkBuilder bound to a filter function. The filter should only
 /// expect directories passed in the Entry instances.
+///
 pub fn with_filter(
-  wb: WalkBuilder(f, p),
+  builder: WalkBuilder(f, p),
   filter: EntryFilter,
 ) -> WalkBuilder(Som, p) {
-  WalkBuilder(filter: Some(filter), path: wb.path)
+  WalkBuilder(filter: Some(filter), path: builder.path)
 }
 
-/// Walk the filesystem lazily.
-pub fn walk(wb: WalkBuilder(f, Som)) {
-  let WalkBuilder(filter: filter_opt, path: path_opt) = wb
+/// Walks the filesystem lazily.
+///
+pub fn walk(builder: WalkBuilder(f, Som)) {
+  let WalkBuilder(filter: filter_opt, path: path_opt) = builder
   let assert Some(root_path) = path_opt
   let filter: EntryFilter = case filter_opt {
     Some(f) -> f
@@ -45,7 +52,9 @@ pub fn walk(wb: WalkBuilder(f, Som)) {
   walk_path(path.from_string(root_path), filter)
 }
 
-/// Weak stat implementation. Let's beef it up!
+/// Weak [stat](https://www.man7.org/linux/man-pages/man2/stat.2.html) implementation.
+// Needs beefing up.
+///
 pub type Stat {
   Stat(is_directory: Bool)
 }
