@@ -4,21 +4,28 @@ import gleam/option.{type Option, None, Some}
 import gleam_community/path
 import simplifile.{type FileError, is_directory, read_directory}
 
-opaque type Non
-opaque type Som
+/// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
+pub opaque type Non
+/// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
+pub opaque type Som
 
+/// See fswalk.builder()
 pub opaque type WalkBuilder(filter, path) {
   WalkBuilder(filter: Option(EntryFilter), path: Option(String))
 }
 
+/// Create a new WalkBuilder
 pub fn builder() -> WalkBuilder(Non, Non) {
   WalkBuilder(filter: None, path: None)
 }
 
+/// Create a new WalkBuilder bound to a directory path to walk
 pub fn with_path(wb: WalkBuilder(f, p), path: String) -> WalkBuilder(f, Som) {
   WalkBuilder(filter: wb.filter, path: Some(path))
 }
 
+/// Create a new WalkBuilder bound to a filter function. The filter should only
+/// expect directories passed in the Entry instances.
 pub fn with_filter(
   wb: WalkBuilder(f, p),
   filter: EntryFilter,
@@ -26,6 +33,7 @@ pub fn with_filter(
   WalkBuilder(filter: Some(filter), path: wb.path)
 }
 
+/// Walk the filesystem lazily.
 pub fn walk(wb: WalkBuilder(f, Som)) {
   let WalkBuilder(filter: filter_opt, path: path_opt) = wb
   let assert Some(root_path) = path_opt
@@ -36,6 +44,7 @@ pub fn walk(wb: WalkBuilder(f, Som)) {
   walk_path(path.from_string(root_path), filter)
 }
 
+/// Weak stat implementation. Let's beef it up!
 pub type Stat {
   Stat(is_directory: Bool)
 }
@@ -59,8 +68,8 @@ fn ok(x) {
   Ok(x)
 }
 
-// walk the fs, starting at pth.
-//
+/// walk the fs, starting at the provided path.
+///
 fn walk_path(
   pth: path.Path,
   filter: EntryFilter,
