@@ -6,6 +6,7 @@ import simplifile.{type FileError, is_directory, read_directory}
 
 /// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
 pub opaque type Non
+
 /// Look away, friend! https://github.com/gleam-lang/gleam/issues/2486
 pub opaque type Som
 
