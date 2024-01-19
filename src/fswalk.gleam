@@ -115,3 +115,21 @@ fn walk_path(
     }
   })
 }
+
+/// Sugar method for consuming the walk iterator instance
+//
+pub fn each(it, fun) {
+  it |> iterator.each(fun)
+}
+
+/// Sugar method for consuming the walk iterator instance
+//
+pub fn map(it, fun) {
+  it |> iterator.map(fun)
+}
+
+/// Sugar method for consuming the walk iterator instance
+//
+pub fn fold(it, init, fun) {
+  it |> iterator.fold(init, fun)
+}
