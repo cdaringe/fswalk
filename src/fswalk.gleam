@@ -15,7 +15,7 @@ pub opaque type Som
 /// See [builder](#builder).
 ///
 pub opaque type WalkBuilder(filter, path) {
-  WalkBuilder(filter: Option(EntryFilter), path: Option(String))
+  WalkBuilder(filter: Option(List(EntryFilter)), path: Option(String))
 }
 
 /// Create a new WalkBuilder
@@ -33,14 +33,16 @@ pub fn with_path(
   WalkBuilder(filter: builder.filter, path: Some(path))
 }
 
-/// Create a new WalkBuilder bound to a filter function. The filter should only
-/// expect directories passed in the Entry instances.
+/// Create a new WalkBuilder adding an additional filter function.
 ///
 pub fn with_filter(
   builder: WalkBuilder(f, p),
   filter: EntryFilter,
 ) -> WalkBuilder(Som, p) {
-  WalkBuilder(filter: Some(filter), path: builder.path)
+  WalkBuilder(
+    filter: Some(list.append(option.unwrap(builder.filter, []), [filter])),
+    path: builder.path,
+  )
 }
 
 /// Walks the filesystem lazily.
@@ -48,11 +50,11 @@ pub fn with_filter(
 pub fn walk(builder: WalkBuilder(f, Som)) {
   let WalkBuilder(filter: filter_opt, path: path_opt) = builder
   let assert Some(root_path) = path_opt
-  let filter: EntryFilter = case filter_opt {
-    Some(f) -> f
-    _ -> fn(_) { True }
+  let filters: List(EntryFilter) = case filter_opt {
+    Some(xs) -> xs
+    _ -> []
   }
-  walk_path(path.from_string(root_path), filter)
+  walk_path(path.from_string(root_path), filters)
 }
 
 // Needs beefing up.
@@ -81,55 +83,88 @@ fn ok(x) {
   Ok(x)
 }
 
+fn filter_many(xs, filters) {
+  xs
+  |> list.filter(fn(entry) { list.all(filters, fn(f) { f(entry) }) })
+}
+
+fn to_ok_iter(xs) {
+  xs
+  |> list.map(ok)
+  |> iterator.from_list
+}
+
 /// walk the fs, starting at the provided path.
 ///
 fn walk_path(
   pth: path.Path,
-  filter: EntryFilter,
+  filters: List(EntryFilter),
 ) -> Iterator(Result(Entry, FileError)) {
   iterator.once(fn() { read_directory(at: path.to_string(pth)) })
   |> iterator.flat_map(fn(readdir_result) {
     case readdir_result {
       Error(x) -> iterator.once(fn() { Error(x) })
       Ok(filenames) -> {
-        let #(allpaths, folderpaths) =
+        let #(filepaths, folderpaths) =
           list.fold(filenames, #([], []), fn(acc, f) {
             let filepath = path.append_string(pth, f)
-            let next_allpaths = [filepath, ..acc.0]
             case is_directory(path.to_string(filepath)) {
-              True -> #(next_allpaths, [filepath, ..acc.1])
-              False -> #(next_allpaths, acc.1)
+              True -> #(acc.0, [filepath, ..acc.1])
+              False -> #([filepath, ..acc.0], acc.1)
             }
           })
-        let ok_entries =
-          allpaths
+        let ok_filtered_files =
+          filepaths
           |> list.map(path_to_entry)
-          |> list.filter(fn(entry) { filter(entry) })
-          |> list.map(ok)
-          |> iterator.from_list
+          |> filter_many(filters)
+          |> to_ok_iter
+
+        let filtered_folders: List(Entry) =
+          folderpaths
+          |> list.map(path_to_entry)
+          |> filter_many(filters)
+
+        let ok_filtered_folders = to_ok_iter(filtered_folders)
+
         iterator.concat([
-          ok_entries,
-          ..list.map(folderpaths, fn(fp) { walk_path(fp, filter) })
+          ok_filtered_files,
+          ok_filtered_folders,
+          ..list.map(filtered_folders, fn(ent) {
+            walk_path(path.from_string(ent.filename), filters)
+          })
         ])
       }
     }
   })
 }
 
-/// Sugar method for consuming the walk iterator instance
 //
+/// Sugar method for consuming the walk iterator instance
 pub fn each(it, fun) {
-  it |> iterator.each(fun)
+  it
+  |> iterator.each(fun)
 }
 
-/// Sugar method for consuming the walk iterator instance
 //
+/// Sugar method for consuming the walk iterator instance
 pub fn map(it, fun) {
-  it |> iterator.map(fun)
+  it
+  |> iterator.map(fun)
 }
 
-/// Sugar method for consuming the walk iterator instance
 //
+/// Sugar method for consuming the walk iterator instance
 pub fn fold(it, init, fun) {
-  it |> iterator.fold(init, fun)
+  it
+  |> iterator.fold(init, fun)
+}
+
+/// Handy EntryFilter
+pub fn only_dirs(ent: Entry) {
+  ent.stat.is_directory
+}
+
+/// Handy EntryFilter
+pub fn only_files(ent: Entry) {
+  !only_dirs(ent)
 }
