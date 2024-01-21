@@ -12,8 +12,11 @@ pub fn main() {
 pub fn walk_iter_test() {
   fswalk.builder()
   |> fswalk.with_path("test/fixture")
-  |> fswalk.with_filter(fn(entry) {
-    !string.contains(does: entry.filename, contain: "ignore")
+  |> fswalk.with_entry_filter(fn(entry) {
+    !string.contains(does: entry.filename, contain: "ignore_")
+  })
+  |> fswalk.with_traversal_filter(fn(entry) {
+    !string.contains(does: entry.filename, contain: "ignore_folder")
   })
   |> fswalk.walk
   |> iterator.map(fn(it) {

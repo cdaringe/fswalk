@@ -14,47 +14,83 @@ pub opaque type Som
 
 /// See [builder](#builder).
 ///
-pub opaque type WalkBuilder(filter, path) {
-  WalkBuilder(filter: Option(List(EntryFilter)), path: Option(String))
+pub opaque type WalkBuilder(entry_filter, traversal_filter, path) {
+  WalkBuilder(
+    entry_filter: Option(List(EntryFilter)),
+    traversal_filter: Option(List(EntryFilter)),
+    path: Option(String),
+  )
 }
 
 /// Create a new WalkBuilder
 ///
-pub fn builder() -> WalkBuilder(Non, Non) {
-  WalkBuilder(filter: None, path: None)
+pub fn builder() -> WalkBuilder(Non, Non, Non) {
+  WalkBuilder(entry_filter: None, traversal_filter: None, path: None)
 }
 
 /// Create a new WalkBuilder bound to a directory path to walk
 ///
 pub fn with_path(
-  builder: WalkBuilder(f, p),
+  builder: WalkBuilder(f, t, p),
   path: String,
-) -> WalkBuilder(f, Som) {
-  WalkBuilder(filter: builder.filter, path: Some(path))
+) -> WalkBuilder(f, t, Som) {
+  WalkBuilder(
+    entry_filter: builder.entry_filter,
+    traversal_filter: builder.traversal_filter,
+    path: Some(path),
+  )
 }
 
-/// Create a new WalkBuilder adding an additional filter function.
+/// Create a new WalkBuilder adding an additional entry filter function.
 ///
-pub fn with_filter(
-  builder: WalkBuilder(f, p),
-  filter: EntryFilter,
-) -> WalkBuilder(Som, p) {
+pub fn with_entry_filter(
+  builder: WalkBuilder(f, t, p),
+  entry_filter: EntryFilter,
+) -> WalkBuilder(Som, t, p) {
   WalkBuilder(
-    filter: Some(list.append(option.unwrap(builder.filter, []), [filter])),
+    entry_filter: Some(
+      list.append(option.unwrap(builder.entry_filter, []), [entry_filter]),
+    ),
+    traversal_filter: builder.traversal_filter,
+    path: builder.path,
+  )
+}
+
+/// Create a new WalkBuilder adding an additional entry filter function.
+///
+pub fn with_traversal_filter(
+  builder: WalkBuilder(f, t, p),
+  traversal_filter: EntryFilter,
+) -> WalkBuilder(f, Som, p) {
+  WalkBuilder(
+    entry_filter: builder.entry_filter,
+    traversal_filter: Some(
+      list.append(option.unwrap(builder.traversal_filter, []), [
+        traversal_filter,
+      ]),
+    ),
     path: builder.path,
   )
 }
 
 /// Walks the filesystem lazily.
 ///
-pub fn walk(builder: WalkBuilder(f, Som)) {
-  let WalkBuilder(filter: filter_opt, path: path_opt) = builder
+pub fn walk(builder: WalkBuilder(f, t, Som)) {
+  let WalkBuilder(
+    entry_filter: entry_filter_opt,
+    traversal_filter: traversal_filter_opt,
+    path: path_opt,
+  ) = builder
   let assert Some(root_path) = path_opt
-  let filters: List(EntryFilter) = case filter_opt {
+  let entry_filters: List(EntryFilter) = case entry_filter_opt {
     Some(xs) -> xs
     _ -> []
   }
-  walk_path(path.from_string(root_path), filters)
+  let traversal_filters: List(EntryFilter) = case traversal_filter_opt {
+    Some(xs) -> xs
+    _ -> []
+  }
+  walk_path(path.from_string(root_path), entry_filters, traversal_filters)
 }
 
 // Needs beefing up.
@@ -98,7 +134,8 @@ fn to_ok_iter(xs) {
 ///
 fn walk_path(
   pth: path.Path,
-  filters: List(EntryFilter),
+  entry_filters: List(EntryFilter),
+  traversal_filters: List(EntryFilter),
 ) -> Iterator(Result(Entry, FileError)) {
   iterator.once(fn() { read_directory(at: path.to_string(pth)) })
   |> iterator.flat_map(fn(readdir_result) {
@@ -116,21 +153,31 @@ fn walk_path(
         let ok_filtered_files =
           filepaths
           |> list.map(path_to_entry)
-          |> filter_many(filters)
+          |> filter_many(entry_filters)
           |> to_ok_iter
 
-        let filtered_folders: List(Entry) =
+        let candidate_folder_entries: List(Entry) =
           folderpaths
           |> list.map(path_to_entry)
-          |> filter_many(filters)
 
-        let ok_filtered_folders = to_ok_iter(filtered_folders)
+        let ok_filtered_folders =
+          candidate_folder_entries
+          |> filter_many(entry_filters)
+          |> to_ok_iter
+
+        let traverse_folders =
+          candidate_folder_entries
+          |> filter_many(traversal_filters)
 
         iterator.concat([
           ok_filtered_files,
           ok_filtered_folders,
-          ..list.map(filtered_folders, fn(ent) {
-            walk_path(path.from_string(ent.filename), filters)
+          ..list.map(traverse_folders, fn(ent) {
+            walk_path(
+              path.from_string(ent.filename),
+              entry_filters,
+              traversal_filters,
+            )
           })
         ])
       }

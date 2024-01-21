@@ -15,8 +15,11 @@ import fswalk
 pub fn main() {
   fswalk.builder()
     |> fswalk.with_path("test/fixture")
-    |> fswalk.with_filter(fn(entry) {
+    |> fswalk.with_entry_filter(fn(entry) {
       !string.contains(does: entry.filename, contain: "ignore")
+    })
+    |> fswalk.with_traversal_filter(fn(entry) {
+      !string.contains(does: entry.filename, contain: "build")
     })
     |> fswalk.walk
     |> iterator.map(fn(it) {
@@ -40,3 +43,8 @@ gleam run   # Run the project
 gleam test  # Run the tests
 gleam shell # Run an Erlang shell
 ```
+
+## changelog
+
+- 1.0.0 - init
+- 2.0.0 - support traverse filtering in tandem with entry filtering
