@@ -1,8 +1,9 @@
 import gleam/list
 import gleam/iterator.{type Iterator}
+import gleam/result
 import gleam/option.{type Option, None, Some}
 import gleam_community/path
-import simplifile.{type FileError, is_directory, read_directory}
+import simplifile.{type FileError, verify_is_directory, read_directory}
 
 /// Private. Pending [gleam/issues/2486](https://github.com/gleam-lang/gleam/issues/2486)
 ///
@@ -108,7 +109,7 @@ pub type EntryFilter =
   fn(Entry) -> Bool
 
 fn to_entry(filename: String) -> Entry {
-  Entry(filename: filename, stat: Stat(is_directory: is_directory(filename)))
+  Entry(filename: filename, stat: Stat(is_directory: verify_is_directory(filename) |> result.unwrap(or: False)))
 }
 
 fn path_to_entry(pth: path.Path) -> Entry {
@@ -145,7 +146,7 @@ fn walk_path(
         let #(filepaths, folderpaths) =
           list.fold(filenames, #([], []), fn(acc, f) {
             let filepath = path.append_string(pth, f)
-            case is_directory(path.to_string(filepath)) {
+            case verify_is_directory(path.to_string(filepath)) |> result.unwrap(or: False) {
               True -> #(acc.0, [filepath, ..acc.1])
               False -> #([filepath, ..acc.0], acc.1)
             }
