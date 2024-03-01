@@ -1,9 +1,11 @@
 import gleam/list
+import gleam/io
 import gleam/iterator.{type Iterator}
 import gleam/result
 import gleam/option.{type Option, None, Some}
 import gleam_community/path
-import simplifile.{type FileError, verify_is_directory, read_directory}
+import dot_env/env
+import simplifile.{type FileError, read_directory, verify_is_directory}
 
 /// Private. Pending [gleam/issues/2486](https://github.com/gleam-lang/gleam/issues/2486)
 ///
@@ -77,6 +79,7 @@ pub fn with_traversal_filter(
 /// Walks the filesystem lazily.
 ///
 pub fn walk(builder: WalkBuilder(f, t, Som)) {
+  let is_debug = env.get_bool("DEBUG") |> result.unwrap(False)
   let WalkBuilder(
     entry_filter: entry_filter_opt,
     traversal_filter: traversal_filter_opt,
@@ -91,7 +94,12 @@ pub fn walk(builder: WalkBuilder(f, t, Som)) {
     Some(xs) -> xs
     _ -> []
   }
-  walk_path(path.from_string(root_path), entry_filters, traversal_filters)
+  walk_path(
+    path.from_string(root_path),
+    entry_filters,
+    traversal_filters,
+    is_debug,
+  )
 }
 
 // Needs beefing up.
@@ -109,7 +117,13 @@ pub type EntryFilter =
   fn(Entry) -> Bool
 
 fn to_entry(filename: String) -> Entry {
-  Entry(filename: filename, stat: Stat(is_directory: verify_is_directory(filename) |> result.unwrap(or: False)))
+  Entry(
+    filename: filename,
+    stat: Stat(
+      is_directory: verify_is_directory(filename)
+      |> result.unwrap(or: False),
+    ),
+  )
 }
 
 fn path_to_entry(pth: path.Path) -> Entry {
@@ -120,9 +134,21 @@ fn ok(x) {
   Ok(x)
 }
 
-fn filter_many(xs, filters) {
+fn filter_many(xs: List(Entry), filters, is_debug) {
   xs
-  |> list.filter(fn(entry) { list.all(filters, fn(f) { f(entry) }) })
+  |> list.filter(fn(entry) {
+    list.all(filters, fn(f) { f(entry) })
+    |> fn(is_included) {
+      case is_debug {
+        True -> {
+          io.debug(#("fswalk", entry.filename, is_included))
+          Nil
+        }
+        _ -> Nil
+      }
+      is_included
+    }
+  })
 }
 
 fn to_ok_iter(xs) {
@@ -137,6 +163,7 @@ fn walk_path(
   pth: path.Path,
   entry_filters: List(EntryFilter),
   traversal_filters: List(EntryFilter),
+  is_debug: Bool,
 ) -> Iterator(Result(Entry, FileError)) {
   iterator.once(fn() { read_directory(at: path.to_string(pth)) })
   |> iterator.flat_map(fn(readdir_result) {
@@ -146,7 +173,10 @@ fn walk_path(
         let #(filepaths, folderpaths) =
           list.fold(filenames, #([], []), fn(acc, f) {
             let filepath = path.append_string(pth, f)
-            case verify_is_directory(path.to_string(filepath)) |> result.unwrap(or: False) {
+            case
+              verify_is_directory(path.to_string(filepath))
+              |> result.unwrap(or: False)
+            {
               True -> #(acc.0, [filepath, ..acc.1])
               False -> #([filepath, ..acc.0], acc.1)
             }
@@ -154,7 +184,7 @@ fn walk_path(
         let ok_filtered_files =
           filepaths
           |> list.map(path_to_entry)
-          |> filter_many(entry_filters)
+          |> filter_many(entry_filters, is_debug)
           |> to_ok_iter
 
         let candidate_folder_entries: List(Entry) =
@@ -163,12 +193,12 @@ fn walk_path(
 
         let ok_filtered_folders =
           candidate_folder_entries
-          |> filter_many(entry_filters)
+          |> filter_many(entry_filters, is_debug)
           |> to_ok_iter
 
         let traverse_folders =
           candidate_folder_entries
-          |> filter_many(traversal_filters)
+          |> filter_many(traversal_filters, is_debug)
 
         iterator.concat([
           ok_filtered_files,
@@ -178,6 +208,7 @@ fn walk_path(
               path.from_string(ent.filename),
               entry_filters,
               traversal_filters,
+              is_debug,
             )
           })
         ])

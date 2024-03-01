@@ -34,6 +34,8 @@ pub fn main() {
 }
 ```
 
+You can set `DEBUG=1` to see all result of every file visited.
+
 Further documentation can be found at <https://hexdocs.pm/fswalk>.
 
 ## Development

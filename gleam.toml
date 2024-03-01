@@ -1,5 +1,5 @@
 name = "fswalk"
-version = "2.0.1"
+version = "2.0.2"
 
 # Fill out these fields if you intend to generate HTML documentation or publish
 # your project to the Hex package manager.
@@ -17,6 +17,7 @@ gleam = ">= 0.32.0"
 gleam_stdlib = "~> 0.34 or ~> 1.0"
 simplifile = "~> 1.2"
 gleam_community_path = "~> 0.1"
+dot_env = "~> 0.2"
 
 [dev-dependencies]
 gleeunit = "~> 1.0"
