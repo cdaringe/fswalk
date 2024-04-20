@@ -1,9 +1,9 @@
-import gleeunit
-import gleeunit/should
 import fswalk
-import gleam/string
 import gleam/iterator
 import gleam/list
+import gleam/string
+import gleeunit
+import gleeunit/should
 
 pub fn main() {
   gleeunit.main()
