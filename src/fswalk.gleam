@@ -94,17 +94,6 @@ fn filter_many(xs, filters) {
   |> list.filter(fn(entry) { list.all(filters, fn(f) { f(entry) }) })
 }
 
-fn unwrap_map_both(
-  r: Result(a, e),
-  map_err: fn(e) -> x,
-  map_ok: fn(a) -> x,
-) -> x {
-  case r {
-    Ok(x) -> map_ok(x)
-    Error(e) -> map_err(e)
-  }
-}
-
 /// Walk the filesystem, starting at the provided path.
 ///
 fn walk_path(
@@ -113,28 +102,30 @@ fn walk_path(
 ) -> Iterator(Result(Entry, FileError)) {
   iterator.once(fn() { read_directory(at: path.to_string(pth)) })
   |> iterator.flat_map(fn(readdir_result) {
-    use basenames <- unwrap_map_both(readdir_result, fn(e) {
-      iterator.once(fn() { Error(e) })
-    })
-    let paths =
-      list.map(basenames, fn(basename) { path.append_string(pth, basename) })
-    let #(all_entries, dir_entries) =
-      list.fold(paths, #([], []), fn(acc, it) {
-        let entry = to_entry(it)
-        let is_dir =
-          verify_is_directory(path.to_string(it))
-          |> result.unwrap(or: False)
-        #([entry, ..acc.0], case is_dir {
-          True -> [entry, ..acc.1]
-          False -> acc.1
+    readdir_result
+    |> result.map_error(fn(e) { iterator.once(fn() { Error(e) }) })
+    |> result.map(fn(basenames) {
+      let paths =
+        list.map(basenames, fn(basename) { path.append_string(pth, basename) })
+      let #(all_entries, dir_entries) =
+        list.fold(paths, #([], []), fn(acc, it) {
+          let entry = to_entry(it)
+          let is_dir =
+            verify_is_directory(path.to_string(it))
+            |> result.unwrap(or: False)
+          #([entry, ..acc.0], case is_dir {
+            True -> [entry, ..acc.1]
+            False -> acc.1
+          })
         })
-      })
-    let traverse_dirs = filter_many(dir_entries, traversal_filters)
-    iterator.concat([
-      iterator.from_list(list.map(all_entries, fn(it) { Ok(it) })),
-      ..list.map(traverse_dirs, fn(ent) {
-        walk_path(path.from_string(ent.filename), traversal_filters)
-      })
-    ])
+      let traverse_dirs = filter_many(dir_entries, traversal_filters)
+      iterator.concat([
+        iterator.from_list(list.map(all_entries, fn(it) { Ok(it) })),
+        ..list.map(traverse_dirs, fn(ent) {
+          walk_path(path.from_string(ent.filename), traversal_filters)
+        })
+      ])
+    })
+    |> result.unwrap_both
   })
 }
