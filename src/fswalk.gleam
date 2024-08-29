@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam_community/path
-import simplifile.{type FileError, read_directory, verify_is_directory}
+import simplifile.{type FileError, is_directory, read_directory}
 
 @internal
 pub type Non
@@ -83,7 +83,7 @@ fn to_entry(path: path.Path) -> Entry {
   Entry(
     filename,
     stat: Stat(
-      is_directory: verify_is_directory(filename)
+      is_directory: is_directory(filename)
       |> result.unwrap(or: False),
     ),
   )
@@ -111,7 +111,7 @@ fn walk_path(
         list.fold(paths, #([], []), fn(acc, it) {
           let entry = to_entry(it)
           let is_dir =
-            verify_is_directory(path.to_string(it))
+            is_directory(path.to_string(it))
             |> result.unwrap(or: False)
           #([entry, ..acc.0], case is_dir {
             True -> [entry, ..acc.1]
