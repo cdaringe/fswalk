@@ -1,6 +1,6 @@
 import fswalk
-import gleam/iterator
 import gleam/string
+import gleam/yielder
 import gleeunit
 import gleeunit/should
 
@@ -15,7 +15,7 @@ pub fn walk_iter_test() {
     !string.contains(does: entry.filename, contain: "ignore_folder")
   })
   |> fswalk.walk
-  |> iterator.fold([], fn(acc, it) {
+  |> yielder.fold([], fn(acc, it) {
     case it {
       Ok(entry) if !entry.stat.is_directory -> [entry.filename, ..acc]
       _ -> acc
