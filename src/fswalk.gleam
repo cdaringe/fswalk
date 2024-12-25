@@ -1,7 +1,7 @@
-import gleam/iterator.{type Iterator}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
+import gleam/yielder.{type Yielder}
 import gleam_community/path
 import simplifile.{type FileError, is_directory, read_directory}
 
@@ -99,11 +99,11 @@ fn filter_many(xs, filters) {
 fn walk_path(
   pth: path.Path,
   traversal_filters: List(EntryFilter),
-) -> Iterator(Result(Entry, FileError)) {
-  iterator.once(fn() { read_directory(at: path.to_string(pth)) })
-  |> iterator.flat_map(fn(readdir_result) {
+) -> Yielder(Result(Entry, FileError)) {
+  yielder.once(fn() { read_directory(at: path.to_string(pth)) })
+  |> yielder.flat_map(fn(readdir_result) {
     readdir_result
-    |> result.map_error(fn(e) { iterator.once(fn() { Error(e) }) })
+    |> result.map_error(fn(e) { yielder.once(fn() { Error(e) }) })
     |> result.map(fn(basenames) {
       let paths =
         list.map(basenames, fn(basename) { path.append_string(pth, basename) })
@@ -119,8 +119,8 @@ fn walk_path(
           })
         })
       let traverse_dirs = filter_many(dir_entries, traversal_filters)
-      iterator.concat([
-        iterator.from_list(list.map(all_entries, fn(it) { Ok(it) })),
+      yielder.concat([
+        yielder.from_list(list.map(all_entries, fn(it) { Ok(it) })),
         ..list.map(traverse_dirs, fn(ent) {
           walk_path(path.from_string(ent.filename), traversal_filters)
         })
