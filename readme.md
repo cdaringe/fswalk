@@ -11,6 +11,7 @@ gleam add fswalk
 
 ```gleam
 import fswalk
+import gleam/yielder
 
 pub fn main() {
   fswalk.builder()
@@ -19,7 +20,7 @@ pub fn main() {
     !string.contains(does: entry.filename, contain: "ignore_folder")
   })
   |> fswalk.walk
-  |> iterator.fold([], fn(acc, it) {
+  |> yielder.fold([], fn(acc, it) {
     case it {
       Ok(entry) if !entry.stat.is_directory -> [entry.filename, ..acc]
       _ -> acc
@@ -45,3 +46,5 @@ gleam test  # Run the tests
 - 3.0.0
   - dropped `.with_entry_filter`. Use `iterator.*` functions on the output instead.
   - dropped sugar functions `.map/.each/.fold`. Use `iterator.*` functions on the output instead.
+- 3.0.3
+  - Use `yielder.*` functions on the output instead of `iterator.*`
