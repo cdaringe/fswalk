@@ -102,30 +102,33 @@ fn walk_path(
 ) -> Yielder(Result(Entry, FileError)) {
   yielder.once(fn() { read_directory(at: path.to_string(pth)) })
   |> yielder.flat_map(fn(readdir_result) {
-    readdir_result
-    |> result.map_error(fn(e) { yielder.once(fn() { Error(e) }) })
-    |> result.map(fn(basenames) {
-      let paths =
-        list.map(basenames, fn(basename) { path.append_string(pth, basename) })
-      let #(all_entries, dir_entries) =
-        list.fold(paths, #([], []), fn(acc, it) {
-          let entry = to_entry(it)
-          let is_dir =
-            is_directory(path.to_string(it))
-            |> result.unwrap(or: False)
-          #([entry, ..acc.0], case is_dir {
-            True -> [entry, ..acc.1]
-            False -> acc.1
+    case
+      readdir_result
+      |> result.map_error(fn(e) { yielder.once(fn() { Error(e) }) })
+      |> result.map(fn(basenames) {
+        let paths =
+          list.map(basenames, fn(basename) { path.append_string(pth, basename) })
+        let #(all_entries, dir_entries) =
+          list.fold(paths, #([], []), fn(acc, it) {
+            let entry = to_entry(it)
+            let is_dir =
+              is_directory(path.to_string(it))
+              |> result.unwrap(or: False)
+            #([entry, ..acc.0], case is_dir {
+              True -> [entry, ..acc.1]
+              False -> acc.1
+            })
           })
-        })
-      let traverse_dirs = filter_many(dir_entries, traversal_filters)
-      yielder.concat([
-        yielder.from_list(list.map(all_entries, fn(it) { Ok(it) })),
-        ..list.map(traverse_dirs, fn(ent) {
-          walk_path(path.from_string(ent.filename), traversal_filters)
-        })
-      ])
-    })
-    |> result.unwrap_both
+        let traverse_dirs = filter_many(dir_entries, traversal_filters)
+        yielder.concat([
+          yielder.from_list(list.map(all_entries, fn(it) { Ok(it) })),
+          ..list.map(traverse_dirs, fn(ent) {
+            walk_path(path.from_string(ent.filename), traversal_filters)
+          })
+        ])
+      })
+    {
+      Ok(x) | Error(x) -> x
+    }
   })
 }
